@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bayou Lumiere Creative Media</title>
+    
+    <!-- Fonts: Playfair Display (Serif for headings) and Inter (Sans for body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <script>
+        // Tailwind config must be declared before the CDN script so custom colors exist
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bayou: {
+                            night: '#0F1C15', // Almost black/green
+                            dark: '#1A2F23', // Deep Cypress Green
+                            leaf: '#2D4A36', // Medium Green
+                            moss: '#8B9B85', // Greyish Green
+                            sand: '#F4F1EA', // Paper/Cream background
+                            gold: '#E9C46A', // Firefly/Sun
+                            accent: '#D4A373' // Wood tone
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    backgroundImage: {
+                        'swamp-texture': "linear-gradient(to bottom, rgba(26, 47, 35, 0.9), rgba(15, 28, 21, 0.95))",
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+    <style>
+        /* Custom Styles */
+        body {
+            background-color: #1A2F23;
+            color: #F4F1EA;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .firefly {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #E9C46A;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #E9C46A, 0 0 20px #E9C46A, 0 0 40px #E9C46A;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0F1C15;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2D4A36;
+            border-radius: 5px;
+        }
+
+        /* Project Card Specifics */
+        .project-card {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .project-card:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(233, 196, 106, 0.3);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+        .project-card.is-active {
+            transform: scale(1.03);
+            border-color: rgba(233, 196, 106, 0.5);
+            box-shadow: 0 15px 40px -12px rgba(0, 0, 0, 0.55);
+        }
+
+        /* Pipeline Overlay */
+        .pipeline-overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 20% 20%, rgba(233, 196, 106, 0.08), transparent 35%), rgba(10, 18, 14, 0.78);
+            backdrop-filter: blur(12px);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            z-index: 60;
+            padding: 32px 18px;
+        }
+        .pipeline-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+        .pipeline-overlay .overlay-panel {
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
+            background: rgba(15, 28, 21, 0.9);
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.6);
+        }
+        .pipeline-overlay .close-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 1px solid rgba(244, 241, 234, 0.1);
+            background: rgba(244, 241, 234, 0.06);
+            color: #F4F1EA;
+            display: grid;
+            place-items: center;
+            transition: all 0.2s ease;
+        }
+        .pipeline-overlay .close-btn:hover {
+            background: rgba(233, 196, 106, 0.15);
+            color: #E9C46A;
+            border-color: rgba(233, 196, 106, 0.4);
+            transform: rotate(3deg) scale(1.05);
+        }
+        .carousel-window {
+            position: relative;
+            overflow: hidden;
+            border-radius: 20px;
+            border: 1px solid rgba(244, 241, 234, 0.08);
+            background: rgba(244, 241, 234, 0.02);
+            min-height: 280px;
+        }
+        .carousel-slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.35s ease;
+            height: 100%;
+        }
+        .carousel-slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .carousel-slide img {
+            width: 100%;
+            height: 320px;
+            object-fit: cover;
+        }
+        .carousel-nav {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 12px;
+            pointer-events: none;
+        }
+        .carousel-nav button {
+            pointer-events: auto;
+            width: 44px;
+            height: 44px;
+            border-radius: 9999px;
+            border: 1px solid rgba(244, 241, 234, 0.2);
+            background: rgba(15, 28, 21, 0.7);
+            color: #F4F1EA;
+            display: grid;
+            place-items: center;
+            transition: all 0.2s ease;
+        }
+        .carousel-nav button:hover {
+            background: rgba(233, 196, 106, 0.15);
+            color: #E9C46A;
+            border-color: rgba(233, 196, 106, 0.4);
+        }
+        .carousel-dots {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 14px;
+        }
+        .carousel-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 9999px;
+            background: rgba(244, 241, 234, 0.2);
+            border: 1px solid rgba(244, 241, 234, 0.25);
+            transition: all 0.2s ease;
+        }
+        .carousel-dot.active {
+            width: 26px;
+            background: rgba(233, 196, 106, 0.8);
+            border-color: rgba(233, 196, 106, 0.6);
+            box-shadow: 0 0 12px rgba(233, 196, 106, 0.35);
+        }
+
+        .hero-text-lift {
+            text-shadow: 0 10px 28px rgba(0, 0, 0, 0.65), 0 0 24px rgba(15, 28, 21, 0.85);
+        }
+
+        .hero-panel {
+            background: rgba(15, 28, 21, 0.55);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(244, 241, 234, 0.06);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+        }   -->
+    </style>
+</head>
+<body class="font-sans antialiased overflow-x-hidden relative bg-bayou-dark text-bayou-sand">
+
+    <!-- Firefly Container -->
+    <div id="fireflies" class="fixed inset-0 pointer-events-none z-10 overflow-hidden h-full w-full"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-24">
+                <!-- Logo Area -->
+                <div class="flex-shrink-0 flex items-center gap-3">
+                    <!-- Updated Logo Image -->
+                    <img src="https://res.cloudinary.com/djjpiz1bh/image/upload/v1763517795/BLCM-MD_lrtosh.webp" 
+                         alt="Bayou Lumiere Logo Icon" 
+                         class="w-14 h-auto object-contain drop-shadow-[0_0_10px_rgba(233,196,106,0.3)]">
+                    <span class="font-serif font-bold text-xl tracking-wide text-bayou-sand">Bayou Lumiere Creative Media</span>
+                </div>
+                
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex space-x-8 items-center">
+                    <a href="#mission" class="text-bayou-sand/80 hover:text-bayou-gold transition-colors font-medium text-sm tracking-wide uppercase">Mission</a>
+                    <a href="#methodology" class="text-bayou-sand/80 hover:text-bayou-gold transition-colors font-medium text-sm tracking-wide uppercase">Methodology</a>
+                    <a href="#pipeline" class="text-bayou-sand/80 hover:text-bayou-gold transition-colors font-medium text-sm tracking-wide uppercase">Projects</a>
+                    <a href="#contact" class="px-6 py-2 border border-bayou-gold/30 text-bayou-gold rounded-full hover:bg-bayou-gold hover:text-bayou-dark transition-all duration-300 font-medium text-sm shadow-[0_0_15px_rgba(233,196,106,0.1)] hover:shadow-[0_0_20px_rgba(233,196,106,0.4)]">Connect</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+        <!-- Background Image with Overlay -->
+        <div class="absolute inset-0 z-0">
+             <!-- The Hero Image -->
+             <img src="https://res.cloudinary.com/djjpiz1bh/image/upload/v1763658702/BLC-PHOTO-PIX_wu31pj.webp" alt="Bayou Background" class="w-full h-full object-cover">
+             
+             <!-- The Gradient Overlay for Readability -->
+             <div class="absolute inset-0 bg-gradient-to-b from-bayou-night/98 via-bayou-night/82 to-bayou-night/98"></div>
+             
+             <!-- A subtle color tint to force the greenish bayou tone -->
+             <div class="absolute inset-0 bg-bayou-dark/60 mix-blend-multiply"></div>
+        </div>
+        
+        <!-- Big Abstract Circle (Sun/Moon Glow) -->
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] md:w-[900px] md:h-[900px] bg-bayou-gold/10 rounded-full blur-3xl z-0 animate-pulse duration-[10s] mix-blend-soft-light"></div>
+
+        <div class="relative z-10 max-w-5xl mx-auto px-6 md:px-10 py-12 md:py-14 text-center hero-content hero-panel rounded-3xl">
+            <div class="inline-block mb-6 px-4 py-1 border border-bayou-gold/30 rounded-full text-xs font-bold uppercase tracking-widest text-bayou-gold bg-bayou-night/60 backdrop-blur-sm shadow-[0_0_15px_rgba(233,196,106,0.1)]">
+                Curriculum-First Entertainment
+            </div>
+            <h1 class="text-5xl md:text-7xl lg:text-8xl font-serif text-bayou-sand mb-8 leading-tight drop-shadow-xl hero-text-lift">
+                Stories that grow <br>
+                <span class="italic hero-text-lift">
+                    <span class="text-bayou-gold drop-shadow-[0_0_22px_rgba(233,196,106,0.45)]" style="color:#E9C46A;">with</span> your child.
+                </span>
+            </h1>
+            <p class="text-lg md:text-xl text-bayou-sand/50 max-w-2xl mx-auto mb-12 leading-relaxed font-medium drop-shadow-md hero-text-lift">
+                We produce entertainment that validates the lived experiences of every child. 
+                <span class="text-bayou-gold drop-shadow-[0_0_22px_rgba(233,196,106,0.45)]" style="color:#E9C46A;">Grounded storytelling. Radical relatability. Practical magic.</span>
+            </p>
+            
+            <div class="flex flex-col md:flex-row gap-6 justify-center items-center">
+                <a href="#mission" class="group relative px-8 py-4 bg-bayou-gold text-bayou-dark rounded-full overflow-hidden shadow-[0_0_20px_rgba(233,196,106,0.3)] hover:shadow-[0_0_30px_rgba(233,196,106,0.5)] transition-all">
+                    <span class="relative z-10 font-bold tracking-wide">Our Philosophy</span>
+                    <div class="absolute inset-0 h-full w-full bg-white/40 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></div>
+                </a>
+                <a href="#pipeline" class="px-8 py-4 border border-bayou-sand/20 text-bayou-sand rounded-full hover:bg-bayou-sand hover:text-bayou-dark transition-all duration-300 font-medium hover:shadow-[0_0_15px_rgba(244,241,234,0.2)] backdrop-blur-sm bg-white/5">
+                    View Projects
+                </a>
+            </div>
+        </div>
+        
+        <!-- Decorative Bottom Wave -->
+        <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none z-20">
+            <svg class="relative block w-[calc(100%+1.3px)] h-[60px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" class="fill-bayou-night opacity-100"></path>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Mission & Vision -->
+    <section id="mission" class="bg-bayou-night text-bayou-sand py-24 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                
+                <!-- Left: Image/Visual -->
+                <div class="relative gsap-fade-right order-2 lg:order-1">
+                    <div class="aspect-[4/5] rounded-t-full border border-bayou-gold/20 overflow-hidden relative shadow-2xl shadow-black/50">
+                        <!-- Placeholder for child reading under tree -->
+                        <img src="https://res.cloudinary.com/djjpiz1bh/image/upload/v1763663146/SCHOOL-PLAY-PIX_tcna26.png" alt="Child reading under a tree" class="object-cover w-full h-full opacity-70 hover:scale-105 transition-transform duration-700 hover:opacity-90">
+                        <div class="absolute inset-0 bg-gradient-to-t from-bayou-night via-transparent to-transparent"></div>
+                        <div class="absolute bottom-10 left-8 right-8">
+                            <div class="w-12 h-1 bg-bayou-gold mb-4"></div>
+                            <p class="font-serif text-2xl italic text-bayou-sand/90">"The lesson dictates the script, not the other way around."</p>
+                        </div>
+                    </div>
+                    <!-- Decorative Glow -->
+                    <div class="absolute -bottom-20 -right-20 w-64 h-64 bg-bayou-leaf/10 rounded-full blur-3xl -z-10"></div>
+                </div>
+
+                <!-- Right: Text Content -->
+                <div class="gsap-fade-left order-1 lg:order-2">
+                    <h2 class="text-4xl md:text-5xl font-serif mb-8 text-bayou-sand">The Mission</h2>
+                    <p class="text-lg text-bayou-sand/70 mb-10 leading-relaxed">
+                        To produce curriculum-first entertainment that validates the lived experiences of every child, providing them with the social-emotional tools to navigate their world with confidence, empathy, and joy.
+                    </p>
+                    
+                    <div class="glass-card p-8 rounded-2xl mb-8">
+                        <h3 class="text-2xl font-serif mb-4 text-bayou-gold flex items-center gap-3">
+                            <span class="inline-block w-2 h-2 rounded-full bg-bayou-gold shadow-[0_0_10px_#E9C46A]"></span>
+                            Practical Over Cinematic
+                        </h3>
+                        <p class="text-bayou-sand/60 leading-relaxed">
+                            We reject the notion that kids need constant hyper-stimulation. We prioritize grounded visuals where settings look like real living rooms and classrooms. We champion <strong>Accessible Imagination</strong> - creativity rooted in reality.
+                        </p>
+                    </div>
+
+                    <ul class="space-y-4 border-l border-bayou-white/10 pl-6">
+                        <li class="flex flex-col">
+                            <span class="text-bayou-gold font-bold text-sm uppercase tracking-wider mb-1">Preschool (2-5)</span>
+                            <span class="text-bayou-sand/70">Foundational SEL, routine, and song-based retention.</span>
+                        </li>
+                        <li class="flex flex-col pt-4">
+                            <span class="text-bayou-gold font-bold text-sm uppercase tracking-wider mb-1">The Bridge Market (5-7)</span>
+                            <span class="text-bayou-sand/70">Complex emotional modeling for the transitional years.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core Values Cards -->
+    <section id="methodology" class="py-24 relative bg-bayou-dark">
+        <!-- Background Texture overlay -->
+        <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+        
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="text-center max-w-3xl mx-auto mb-20 gsap-fade-up">
+                <h2 class="text-4xl font-serif text-bayou-sand mb-4">Our Core Drives</h2>
+                <p class="text-bayou-sand/50">We exist to close the representation gap. We don't just tell stories; we model social-emotional navigation.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Value 1 -->
+                <div class="glass-card p-8 rounded-xl hover:bg-white/5 transition-colors border-t-4 border-t-bayou-leaf gsap-stagger-card group">
+                    <div class="w-12 h-12 bg-bayou-leaf/20 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-bayou-moss" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-serif font-bold text-bayou-sand mb-3">Education First</h3>
+                    <p class="text-sm text-bayou-sand/60 leading-relaxed">The lesson dictates the script. We identify the SEL deficit first, then build the narrative wrapper.</p>
+                </div>
+
+                <!-- Value 2 -->
+                <div class="glass-card p-8 rounded-xl hover:bg-white/5 transition-colors border-t-4 border-t-bayou-gold gsap-stagger-card group">
+                    <div class="w-12 h-12 bg-bayou-gold/20 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-bayou-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-serif font-bold text-bayou-sand mb-3">Radical Relatability</h3>
+                    <p class="text-sm text-bayou-sand/60 leading-relaxed">We show the world as it is, populated by kids who look, think, and feel differently. No "very special episodes."</p>
+                </div>
+
+                <!-- Value 3 -->
+                <div class="glass-card p-8 rounded-xl hover:bg-white/5 transition-colors border-t-4 border-t-bayou-moss gsap-stagger-card group">
+                    <div class="w-12 h-12 bg-bayou-moss/20 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-bayou-moss" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-serif font-bold text-bayou-sand mb-3">Practicality</h3>
+                    <p class="text-sm text-bayou-sand/60 leading-relaxed">Accessible solutions to kid-sized problems. We value tools the viewer actually has access to.</p>
+                </div>
+
+                <!-- Value 4 -->
+                <div class="glass-card p-8 rounded-xl hover:bg-white/5 transition-colors border-t-4 border-t-bayou-sand gsap-stagger-card group">
+                    <div class="w-12 h-12 bg-bayou-sand/10 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-bayou-sand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-serif font-bold text-bayou-sand mb-3">Joyous Inclusion</h3>
+                    <p class="text-sm text-bayou-sand/60 leading-relaxed">Diversity triggers no reaction. It is the baseline reality of our universe. The "Normalcy Standard."</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Development Pipeline -->
+    <section id="pipeline" class="py-24 bg-bayou-night relative">
+         <!-- Decorative Background tree silhouette -->
+         <div class="absolute bottom-0 right-0 w-3/4 h-full opacity-[0.03] pointer-events-none z-0">
+             <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="h-full w-full">
+                <path fill="#F4F1EA" d="M45,-76C58.3,-69.3,69.2,-58.3,76.6,-45.5C84,-32.7,87.9,-18.1,85.6,-4.1C83.3,10,74.9,23.5,65.2,35.3C55.5,47.1,44.6,57.2,32.4,64.6C20.2,72,6.7,76.6,-5.3,74.4C-17.3,72.2,-27.7,63.1,-38.4,54.6C-49.1,46.1,-60.1,38.2,-68.9,27.1C-77.7,16,-84.3,1.7,-81.9,-11.2C-79.5,-24.1,-68.1,-35.6,-56.3,-43.7C-44.5,-51.8,-32.3,-56.5,-20.4,-58.9C-8.5,-61.3,3.1,-61.3,14.7,-61.3Z" transform="translate(100 100)" />
+             </svg>
+         </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-12">
+                <div class="gsap-fade-right">
+                    <h2 class="text-4xl font-serif text-bayou-sand">Development Pipeline</h2>
+                    <p class="text-bayou-sand/50 mt-2">What's brewing in the bayou</p>
+                </div>
+                <div class="mt-4 md:mt-0 gsap-fade-left">
+                    <span class="inline-flex items-center px-4 py-2 rounded-full bg-bayou-gold/10 border border-bayou-gold/20 text-bayou-gold font-bold text-sm backdrop-blur-md">
+                        <span class="w-2 h-2 bg-bayou-gold rounded-full mr-2 animate-pulse shadow-[0_0_8px_#E9C46A]"></span>
+                        5 Active Projects
+                    </span>
+                </div>
+            </div>
+
+            <!-- Project Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                <!-- Project 1: Page Tuners -->
+                <div class="glass-card project-card rounded-xl p-6 hover:-translate-y-2 border-l-4 border-l-bayou-gold gsap-pipeline-item h-full flex flex-col cursor-pointer" data-project="page-tuners" role="button" tabindex="0" aria-expanded="false">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="px-2 py-1 bg-bayou-gold/20 text-bayou-gold text-[10px] font-bold uppercase tracking-wide rounded border border-bayou-gold/20">Bridge Market</span>
+                        <span class="w-2 h-2 rounded-full bg-bayou-gold shadow-[0_0_5px_#E9C46A]"></span>
+                    </div>
+                    <h3 class="text-2xl font-serif font-bold text-bayou-sand mb-2">Page Tuners</h3>
+                    <p class="text-bayou-sand/60 text-sm flex-grow mb-4">The flagship story. A grounded adventure series bridging the gap between early childhood and independence.</p>
+                    <div class="pt-4 border-t border-white/5 flex justify-between items-center">
+                        <span class="text-xs text-bayou-sand/40 uppercase tracking-widest">Status</span>
+                        <span class="text-xs font-bold text-bayou-sand/80">Pre-Production</span>
+                    </div>
+                </div>
+
+                <!-- Project 2: Molly Molecule -->
+                <div class="glass-card project-card rounded-xl p-6 hover:-translate-y-2 border-l-4 border-l-bayou-gold gsap-pipeline-item h-full flex flex-col cursor-pointer" data-project="molly-molecule" role="button" tabindex="0" aria-expanded="false">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="px-2 py-1 bg-bayou-gold/20 text-bayou-gold text-[10px] font-bold uppercase tracking-wide rounded border border-bayou-gold/20">Bridge Market</span>
+                        <!-- Icon for Hybrid -->
+                        <svg class="w-4 h-4 text-bayou-sand/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-serif font-bold text-bayou-sand mb-2">Molly Molecule</h3>
+                    <p class="text-bayou-sand/60 text-sm flex-grow mb-4">Live-action/Animation hybrid. STEM-focused adventures that adhere strictly to SEL principles.</p>
+                    <div class="pt-4 border-t border-white/5 flex justify-between items-center">
+                        <span class="text-xs text-bayou-sand/40 uppercase tracking-widest">Format</span>
+                        <span class="text-xs font-bold text-bayou-sand/80">Hybrid</span>
+                    </div>
+                </div>
+
+                <!-- Project 3: Stuffed Animal School -->
+                <div class="glass-card project-card rounded-xl p-6 hover:-translate-y-2 border-l-4 border-l-bayou-leaf gsap-pipeline-item h-full flex flex-col cursor-pointer" data-project="stuffed-animal-school" role="button" tabindex="0" aria-expanded="false">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="px-2 py-1 bg-bayou-leaf/20 text-bayou-moss text-[10px] font-bold uppercase tracking-wide rounded border border-bayou-leaf/20">Preschool</span>
+                        <!-- Icon for 3D -->
+                        <svg class="w-4 h-4 text-bayou-sand/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-serif font-bold text-bayou-sand mb-2">Stuffed Animal School</h3>
+                    <p class="text-bayou-sand/60 text-sm flex-grow mb-4">3D Animation focused on in-class transition and development with strong T-SEL components.</p>
+                    <div class="pt-4 border-t border-white/5 flex justify-between items-center">
+                        <span class="text-xs text-bayou-sand/40 uppercase tracking-widest">Focus</span>
+                        <span class="text-xs font-bold text-bayou-sand/80">T-SEL</span>
+                    </div>
+                </div>
+
+                <!-- Project 4: Out of the World -->
+                <div class="glass-card project-card rounded-xl p-6 hover:-translate-y-2 border-l-4 border-l-bayou-gold gsap-pipeline-item h-full flex flex-col cursor-pointer" data-project="out-of-the-world" role="button" tabindex="0" aria-expanded="false">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="px-2 py-1 bg-bayou-gold/20 text-bayou-gold text-[10px] font-bold uppercase tracking-wide rounded border border-bayou-gold/20">Bridge Market</span>
+                        <svg class="w-4 h-4 text-bayou-sand/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-serif font-bold text-bayou-sand mb-2">Out of the World</h3>
+                    <p class="text-bayou-sand/60 text-sm flex-grow mb-4">Sci-Fi adjacent adventures exploring behavioral dynamics alongside natural sciences.</p>
+                    <div class="pt-4 border-t border-white/5 flex justify-between items-center">
+                        <span class="text-xs text-bayou-sand/40 uppercase tracking-widest">Genre</span>
+                        <span class="text-xs font-bold text-bayou-sand/80">Sci-Fi / Nature</span>
+                    </div>
+                </div>
+
+                <!-- Project 5: Artie & Friends -->
+                <div class="glass-card project-card rounded-xl p-6 hover:-translate-y-2 border-l-4 border-l-bayou-leaf gsap-pipeline-item h-full flex flex-col cursor-pointer" data-project="artie-friends" role="button" tabindex="0" aria-expanded="false">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="px-2 py-1 bg-bayou-leaf/20 text-bayou-moss text-[10px] font-bold uppercase tracking-wide rounded border border-bayou-leaf/20">Preschool</span>
+                        <svg class="w-4 h-4 text-bayou-sand/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-serif font-bold text-bayou-sand mb-2">Artie & Friends</h3>
+                    <p class="text-bayou-sand/60 text-sm flex-grow mb-4">Live-action/Puppetry with co-family elements. Early-stage learning meets CASEL foundations.</p>
+                    <div class="pt-4 border-t border-white/5 flex justify-between items-center">
+                        <span class="text-xs text-bayou-sand/40 uppercase tracking-widest">Format</span>
+                        <span class="text-xs font-bold text-bayou-sand/80">Puppetry / LA</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Pipeline Overlay -->
+    <div id="pipeline-overlay" class="pipeline-overlay hidden">
+        <div class="overlay-panel glass-card rounded-2xl px-6 py-6 md:px-10 md:py-8 relative">
+            <div class="flex justify-between items-start gap-4 mb-6">
+                <div>
+                    <div class="flex flex-wrap items-center gap-3 text-xs uppercase text-bayou-sand/50 tracking-[0.25em]">
+                        <span class="px-3 py-1 rounded-full bg-bayou-gold/15 text-bayou-gold border border-bayou-gold/30 font-semibold" data-overlay-market>Bridge Market</span>
+                        <span class="px-3 py-1 rounded-full bg-bayou-sand/5 border border-white/10 text-bayou-sand/70" data-overlay-format>Live Action</span>
+                    </div>
+                    <h3 class="text-3xl md:text-4xl font-serif font-bold text-bayou-sand mt-3" data-overlay-title>Project Title</h3>
+                    <p class="text-bayou-sand/60 mt-2 max-w-2xl" data-overlay-summary>Flagship stories bridging the gap between early childhood and independence.</p>
+                </div>
+                <button class="close-btn" type="button" data-overlay-close aria-label="Close project overlay">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <div>
+                    <div class="carousel-window mb-4">
+                        <div class="relative">
+                            <div data-carousel-track></div>
+                            <div class="carousel-nav">
+                                <button type="button" data-carousel-prev aria-label="Previous slide">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                                </button>
+                                <button type="button" data-carousel-next aria-label="Next slide">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="carousel-dots" data-carousel-dots></div>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center gap-3 text-xs text-bayou-sand/60">
+                        <span class="px-3 py-1 rounded-full bg-bayou-sand/5 border border-white/10">Status: <span class="font-semibold text-bayou-sand/80" data-overlay-status>Pre-Production</span></span>
+                    </div>
+                    <div class="text-sm uppercase tracking-[0.2em] text-bayou-sand/50">Expanded synopsis</div>
+                    <p class="text-bayou-sand/70 leading-relaxed" data-overlay-long>
+                        Page Tuners is a live-action children’s adventure series that brings classic literature to life through humor, music, and imagination.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact / CTA -->
+    <section id="contact" class="py-24 bg-bayou-dark text-bayou-sand relative overflow-hidden">
+        <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
+        <div class="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-bayou-gold/20 to-transparent"></div>
+        
+        <div class="max-w-4xl mx-auto px-4 text-center relative z-10">
+            <h2 class="text-4xl md:text-5xl font-serif mb-6 text-bayou-gold">Partner With Us</h2>
+            <p class="text-lg text-bayou-sand/70 mb-10 font-light">
+                We are currently in <strong>Phase 1: Foundation</strong>. We are assembling our curriculum board and finalizing our IP "Bible." Interested in joining the advisory board or learning more?
+            </p>
+            <a href="mailto:hello@bayoulumiere.com" class="inline-block px-10 py-4 bg-bayou-gold text-bayou-dark font-bold rounded-full hover:bg-white transition-all duration-300 transform hover:scale-105 shadow-[0_0_25px_rgba(233,196,106,0.3)]">
+                Get in Touch
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-bayou-night border-t border-bayou-white/5 py-12 text-bayou-sand/40 text-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-2">
+                <span class="font-serif font-bold text-lg text-bayou-sand/80">Bayou Lumiere</span>
+            </div>
+            <p>&copy; 2025 Bayou Lumiere Creative Media. All rights reserved.</p>
+            <div class="flex gap-6">
+                <a href="#" class="hover:text-bayou-gold transition-colors">Privacy</a>
+                <a href="#" class="hover:text-bayou-gold transition-colors">Terms</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Navbar Scroll Effect
+        window.addEventListener('scroll', () => {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('bg-bayou-night/90', 'backdrop-blur-md', 'shadow-lg');
+            } else {
+                navbar.classList.remove('bg-bayou-night/90', 'backdrop-blur-md', 'shadow-lg');
+            }
+        });
+
+        const hasGSAP = typeof window.gsap !== "undefined";
+        const hasScrollTrigger = typeof window.ScrollTrigger !== "undefined";
+
+        if (!hasGSAP) {
+            console.warn("GSAP failed to load; animations are disabled.");
+        } else {
+            if (hasScrollTrigger) {
+                gsap.registerPlugin(ScrollTrigger);
+            } else {
+                console.warn("ScrollTrigger missing; scroll animations downgraded.");
+            }
+
+            // --- Firefly Animation System ---
+            const fireflyContainer = document.getElementById('fireflies');
+            const fireflyCount = 25; // Increased for dark mode
+
+            function createFirefly() {
+                const fly = document.createElement('div');
+                fly.classList.add('firefly');
+                
+                // Random starting position
+                const startX = Math.random() * window.innerWidth;
+                const startY = Math.random() * window.innerHeight;
+                
+                gsap.set(fly, { x: startX, y: startY, opacity: 0 });
+                fireflyContainer.appendChild(fly);
+
+                animateFirefly(fly);
+            }
+
+            function animateFirefly(element) {
+                // Random movement parameters
+                const xDest = Math.random() * window.innerWidth;
+                const yDest = Math.random() * window.innerHeight;
+                const duration = 5 + Math.random() * 10; // 5-15 seconds per move
+
+                // Main movement
+                gsap.to(element, {
+                    x: xDest,
+                    y: yDest,
+                    duration: duration,
+                    ease: "sine.inOut",
+                    onComplete: () => animateFirefly(element)
+                });
+
+                // Blink effect (Lumiere)
+                gsap.to(element, {
+                    opacity: "random(0.1, 0.8)",
+                    duration: "random(1, 4)",
+                    repeat: -1,
+                    yoyo: true,
+                    ease: "sine.inOut"
+                });
+            }
+
+            // Initialize fireflies
+            for (let i = 0; i < fireflyCount; i++) {
+                createFirefly();
+            }
+
+            // --- Scroll Animations ---
+
+            // Hero Fade In
+            gsap.from(".hero-content > *", {
+                y: 50,
+                opacity: 0,
+                duration: 1,
+                stagger: 0.2,
+                ease: "power3.out"
+            });
+
+            if (hasScrollTrigger) {
+                // Mission Image Right
+                gsap.from(".gsap-fade-right", {
+                    scrollTrigger: { trigger: ".gsap-fade-right", start: "top 80%" },
+                    x: -50,
+                    opacity: 0,
+                    duration: 1,
+                    ease: "power3.out",
+                    immediateRender: false
+                });
+
+                // Mission Text Left
+                gsap.from(".gsap-fade-left", {
+                    scrollTrigger: { trigger: ".gsap-fade-left", start: "top 80%" },
+                    x: 50,
+                    opacity: 0,
+                    duration: 1,
+                    ease: "power3.out",
+                    immediateRender: false
+                });
+
+                // Values Cards Stagger
+                gsap.from(".gsap-stagger-card", {
+                    scrollTrigger: { trigger: "#methodology", start: "top 70%" },
+                    y: 50,
+                    opacity: 0,
+                    duration: 0.8,
+                    stagger: 0.15,
+                    ease: "back.out(1.7)",
+                    immediateRender: false
+                });
+
+                // Pipeline Items Stagger
+                gsap.from(".gsap-pipeline-item", {
+                    scrollTrigger: { trigger: "#pipeline", start: "top 75%" },
+                    y: 30,
+                    opacity: 0,
+                    duration: 0.8,
+                    stagger: 0.2,
+                    ease: "power2.out",
+                    immediateRender: false
+                });
+            } else {
+                // Fallback: animate core sections once on load so content never stays hidden
+                gsap.from([
+                    ".gsap-fade-right",
+                    ".gsap-fade-left",
+                    ".gsap-stagger-card",
+                    ".gsap-pipeline-item"
+                ], {
+                    y: 20,
+                    opacity: 0,
+                    duration: 0.9,
+                    stagger: 0.1,
+                    ease: "power2.out"
+                });
+            }
+        }
+
+        // --- Development Pipeline Overlay & Carousel ---
+        const pipelineProjects = {
+            "page-tuners": {
+                title: "Page Tuners",
+                market: "Bridge Market",
+                format: "Live-Action Adventure",
+                status: "Pre-Production",
+                summary: "The flagship story. A grounded adventure series bridging the gap between early childhood and independence.",
+                long: "Page Tuners is a live-action children's adventure series that brings classic literature to life through humor, music, and imagination. It follows Cadence, a passionate young librarian, and her group of curious book club kids as they discover that every book in the library is alive. Together, they must enter these stories to repair story knots, moments where characters or morals have gone wrong. With the help of Bibli, a snarky talking bookworm puppet, the team travels through famous classic public domain tales from Robin Hood to Peter Pan, balancing humor and heart with educational and social-emotional themes.",
+                slides: [
+                    "https://images.unsplash.com/photo-1491841651911-c44c30c34548?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1529220511456-95e10782c7b8?auto=format&fit=crop&w=1200&q=80"
+                ]
+            },
+            "molly-molecule": {
+                title: "Molly Molecule",
+                market: "Bridge Market",
+                format: "Hybrid (Live Action / Animation)",
+                status: "Development",
+                summary: "Live-action/Animation hybrid. STEM-focused adventures that adhere strictly to SEL principles.",
+                long: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum tincidunt mauris eu fringilla volutpat. Fusce tincidunt, leo ac semper dapibus, mi lectus auctor lacus, vitae cursus elit ipsum et lacus. Nunc vitae orci quis erat gravida facilisis sit amet quis neque. Curabitur dictum, neque vel auctor hendrerit, metus felis sodales nunc, et vestibulum nunc nisl nec eros.",
+                slides: [
+                    "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"
+                ]
+            },
+            "stuffed-animal-school": {
+                title: "Stuffed Animal School",
+                market: "Preschool",
+                format: "3D Animation",
+                status: "Exploration",
+                summary: "3D Animation focused on in-class transition and development with strong T-SEL components.",
+                long: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent in metus fermentum, faucibus justo ac, convallis metus. Donec tempor dui sed purus mattis maximus. Integer vitae arcu id nisl luctus vestibulum sed vel ipsum. Etiam luctus vehicula mi, ut bibendum lacus suscipit sed.",
+                slides: [
+                    "https://images.unsplash.com/photo-1487915659273-12b7210c9c9e?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1504275107627-0c2ba7a43dba?auto=format&fit=crop&w=1200&q=80"
+                ]
+            },
+            "out-of-the-world": {
+                title: "Out of the World",
+                market: "Bridge Market",
+                format: "Sci-Fi Adventure",
+                status: "Concepting",
+                summary: "Sci-Fi adjacent adventures exploring behavioral dynamics alongside natural sciences.",
+                long: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam mattis, lectus ut pharetra condimentum, velit quam consectetur justo, id cursus neque velit a est. Integer egestas, mauris eu elementum vestibulum, lacus nibh vulputate metus, non scelerisque nunc nunc sed nunc.",
+                slides: [
+                    "https://images.unsplash.com/photo-1470229538611-16ba8c7ffbd7?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80"
+                ]
+            },
+            "artie-friends": {
+                title: "Artie & Friends",
+                market: "Preschool",
+                format: "Puppetry / Live Action",
+                status: "Early Development",
+                summary: "Live-action/Puppetry with co-family elements. Early-stage learning meets CASEL foundations.",
+                long: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris congue auctor justo, vitae sodales justo euismod eget. Nulla nec magna ac erat placerat malesuada. Maecenas ultricies, nibh id varius interdum, sem augue convallis arcu, nec gravida tellus odio sed nibh.",
+                slides: [
+                    "https://images.unsplash.com/photo-1504439468489-c8920d796a29?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1200&q=80"
+                ]
+            }
+        };
+
+        const pipelineOverlay = document.getElementById('pipeline-overlay');
+        const overlayTitle = pipelineOverlay?.querySelector('[data-overlay-title]');
+        const overlaySummary = pipelineOverlay?.querySelector('[data-overlay-summary]');
+        const overlayLong = pipelineOverlay?.querySelector('[data-overlay-long]');
+        const overlayStatus = pipelineOverlay?.querySelector('[data-overlay-status]');
+        const overlayMarket = pipelineOverlay?.querySelector('[data-overlay-market]');
+        const overlayFormat = pipelineOverlay?.querySelector('[data-overlay-format]');
+        const overlayClose = pipelineOverlay?.querySelector('[data-overlay-close]');
+        const carouselTrack = pipelineOverlay?.querySelector('[data-carousel-track]');
+        const carouselDots = pipelineOverlay?.querySelector('[data-carousel-dots]');
+        const carouselPrev = pipelineOverlay?.querySelector('[data-carousel-prev]');
+        const carouselNext = pipelineOverlay?.querySelector('[data-carousel-next]');
+        let currentSlideIndex = 0;
+        let activeCard = null;
+
+        const fallbackSlides = [
+            "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"
+        ];
+
+        function setCarouselSlide(index) {
+            if (!carouselTrack) return;
+            const slides = carouselTrack.querySelectorAll('.carousel-slide');
+            if (!slides.length) return;
+            currentSlideIndex = (index + slides.length) % slides.length;
+            slides.forEach((slide, idx) => slide.classList.toggle('active', idx === currentSlideIndex));
+            const dots = carouselDots?.querySelectorAll('.carousel-dot') || [];
+            dots.forEach((dot, idx) => dot.classList.toggle('active', idx === currentSlideIndex));
+        }
+
+        function renderCarousel(slides) {
+            if (!carouselTrack) return;
+            carouselTrack.innerHTML = "";
+            if (carouselDots) carouselDots.innerHTML = "";
+            const useSlides = slides && slides.length ? slides : fallbackSlides;
+
+            useSlides.forEach((src, idx) => {
+                const slide = document.createElement('div');
+                slide.className = 'carousel-slide';
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = `${overlayTitle?.textContent || 'Project'} slide ${idx + 1}`;
+                slide.appendChild(img);
+                carouselTrack.appendChild(slide);
+
+                if (carouselDots) {
+                    const dot = document.createElement('button');
+                    dot.type = 'button';
+                    dot.className = 'carousel-dot';
+                    dot.addEventListener('click', () => setCarouselSlide(idx));
+                    carouselDots.appendChild(dot);
+                }
+            });
+
+            setCarouselSlide(0);
+        }
+
+        function openPipelineOverlay(projectKey, card) {
+            if (!pipelineOverlay || !pipelineProjects[projectKey]) return;
+            const data = pipelineProjects[projectKey];
+
+            if (overlayTitle) overlayTitle.textContent = data.title || '';
+            if (overlaySummary) overlaySummary.textContent = data.summary || '';
+            if (overlayLong) overlayLong.textContent = data.long || '';
+            if (overlayStatus) overlayStatus.textContent = data.status || '';
+            if (overlayMarket) overlayMarket.textContent = data.market || '';
+            if (overlayFormat) overlayFormat.textContent = data.format || '';
+
+            renderCarousel(data.slides);
+
+            pipelineOverlay.classList.remove('hidden');
+            requestAnimationFrame(() => pipelineOverlay.classList.add('show'));
+            document.body.classList.add('overflow-hidden');
+
+            if (activeCard) {
+                activeCard.classList.remove('is-active');
+                activeCard.setAttribute('aria-expanded', 'false');
+            }
+            activeCard = card || null;
+            if (activeCard) {
+                activeCard.classList.add('is-active');
+                activeCard.setAttribute('aria-expanded', 'true');
+            }
+        }
+
+        function closePipelineOverlay() {
+            if (!pipelineOverlay) return;
+            pipelineOverlay.classList.remove('show');
+            setTimeout(() => pipelineOverlay.classList.add('hidden'), 260);
+            document.body.classList.remove('overflow-hidden');
+            if (activeCard) {
+                activeCard.classList.remove('is-active');
+                activeCard.setAttribute('aria-expanded', 'false');
+            }
+            activeCard = null;
+        }
+
+        document.querySelectorAll('.project-card').forEach(card => {
+            const projectKey = card.getAttribute('data-project');
+            if (!projectKey) return;
+            const openCardOverlay = () => openPipelineOverlay(projectKey, card);
+            card.addEventListener('click', openCardOverlay);
+            card.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openCardOverlay();
+                }
+            });
+        });
+
+        carouselPrev?.addEventListener('click', () => setCarouselSlide(currentSlideIndex - 1));
+        carouselNext?.addEventListener('click', () => setCarouselSlide(currentSlideIndex + 1));
+        overlayClose?.addEventListener('click', closePipelineOverlay);
+        pipelineOverlay?.addEventListener('click', (event) => {
+            if (event.target === pipelineOverlay) {
+                closePipelineOverlay();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && pipelineOverlay?.classList.contains('show')) {
+                closePipelineOverlay();
+            }
+        });
+
+    </script>
+</body>
+</html>
